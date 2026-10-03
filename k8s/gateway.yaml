@@ -1,0 +1,38 @@
+# Gateway API: точка входа и маршрут к приложению.
+# Реализация — Envoy Gateway (ставится scripts/06-gateway.sh),
+# GatewayClass "eg" создаётся установщиком Envoy Gateway автоматически.
+
+# Gateway: слушатель на порту 80.
+# Envoy Gateway создаёт для него Service типа LoadBalancer,
+# IP выдаёт MetalLB.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: app-gateway
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same       # HTTPRoute должен лежать в том же namespace
+
+---
+# HTTPRoute: все запросы с пути / отправляются в Service nginx.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: nginx-route
+spec:
+  parentRefs:
+    - name: app-gateway    # привязка к Gateway выше
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: nginx      # Service приложения (k8s/nginx-service.yaml)
+          port: 80

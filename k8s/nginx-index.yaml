@@ -1,0 +1,13 @@
+# ConfigMap со страницей-заглушкой.
+# ТЗ требует однозначно проверяемый ответ приложения — отдаём Hello World!
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-index
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>KubernetesProject</title></head>
+    <body><h1>Hello World!</h1></body>
+    </html>
