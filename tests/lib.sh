@@ -10,14 +10,19 @@ FAIL=0
 
 check() {
     # проверка успешна, если команда вернула код 0
+    # при провале печатаем вывод команды (первые 3 строки) — видно причину
     local desc="$1"
     local cmd="$2"
-    if eval "$cmd" > /dev/null 2>&1; then
+    local out
+    if out=$(eval "$cmd" 2>&1); then
         PASS=$((PASS + 1))
         echo "  [PASS] $desc"
     else
         FAIL=$((FAIL + 1))
         echo "  [FAIL] $desc"
+        if [ -n "$out" ]; then
+            echo "$out" | head -3 | sed 's/^/        /'
+        fi
     fi
 }
 
