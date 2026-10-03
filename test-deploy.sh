@@ -35,7 +35,20 @@ for a in "$@"; do
         *) ARGS+=("$a") ;;
     esac
 done
-NODE_HOSTNAME="${ARGS[0]:-$(hostname)}"
+# Имя ноды Kubernetes обязано быть RFC 1123: только строчные буквы, цифры,
+# "-" и ".". WSL по умолчанию даёт hostname вида DESKTOP-RGBCS78 — kubeadm
+# init с таким именем падает на mark-control-plane:
+#   error: nodes "DESKTOP-RGBCS78" not found
+# (kubelet регистрирует ноду в нижнем регистре). Поэтому нормализуем.
+normalize_node_name() {
+    local raw="$1" out
+    out="$(printf '%s' "$raw" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.-' '-')"
+    out="$(printf '%s' "$out" | sed -E 's/^[^a-z0-9]+//; s/[^a-z0-9]+$//')"
+    [ -z "$out" ] && out="k8s-node"
+    printf '%s' "$out"
+}
+
+NODE_HOSTNAME="$(normalize_node_name "${ARGS[0]:-$(hostname)}")"
 
 # --- как повышать/понижать права -------------------------------------------
 REAL_USER="${SUDO_USER:-$(id -un)}"

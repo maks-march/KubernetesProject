@@ -8,7 +8,23 @@
 
 set -euo pipefail
 
-NODE_HOSTNAME="${1:?Usage: 01-node-base.sh <hostname>}"
+NODE_HOSTNAME_RAW="${1:?Usage: 01-node-base.sh <hostname>}"
+# Имя ноды Kubernetes обязано быть RFC 1123: только строчные буквы, цифры,
+# "-" и ".". WSL по умолчанию даёт hostname вида DESKTOP-RGBCS78 — kubeadm
+# init с таким именем падает на mark-control-plane:
+#   error: nodes "DESKTOP-RGBCS78" not found
+# (kubelet регистрирует ноду в нижнем регистре). Поэтому нормализуем.
+normalize_node_name() {
+    local raw="$1" out
+    out="$(printf '%s' "$raw" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9.-' '-')"
+    out="$(printf '%s' "$out" | sed -E 's/^[^a-z0-9]+//; s/[^a-z0-9]+$//')"
+    [ -z "$out" ] && out="k8s-node"
+    printf '%s' "$out"
+}
+NODE_HOSTNAME="$(normalize_node_name "$NODE_HOSTNAME_RAW")"
+if [ "$NODE_HOSTNAME" != "$NODE_HOSTNAME_RAW" ]; then
+    echo "ПРИМЕЧАНИЕ: '${NODE_HOSTNAME_RAW}' приведено к '${NODE_HOSTNAME}'"
+fi
 
 # 1. Без systemd kubeadm работать не будет
 if [ "$(ps -p 1 -o comm=)" != "systemd" ]; then

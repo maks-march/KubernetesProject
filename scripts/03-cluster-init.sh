@@ -9,7 +9,9 @@
 
 set -euo pipefail
 
-NODE_NAME="$(hostname)"
+# имя ноды — только нижний регистр (требование RFC 1123 для Kubernetes);
+# hostname вида DESKTOP-XXXX kubelet зарегистрирует как desktop-xxxx
+NODE_NAME="$(hostname | tr 'A-Z' 'a-z')"
 NODE_IP="$(hostname -I | awk '{print $1}')"
 POD_CIDR="10.244.0.0/16"
 
