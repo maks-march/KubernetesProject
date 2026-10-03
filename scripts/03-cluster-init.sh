@@ -34,11 +34,13 @@ cp -f /etc/kubernetes/admin.conf "$USER_HOME/.kube/config"
 chown "$REAL_USER":"$REAL_USER" "$USER_HOME/.kube/config"
 chmod 600 "$USER_HOME/.kube/config"
 
-# 3. Taint
+# 4. Taint
 # kubeadm запрещает обычным подам работать на control-plane (taint NoSchedule).
 # Нода одна, поэтому taint снимаем, иначе поды навсегда останутся в Pending.
-# Сначала проверяем, что taint вообще есть: повторный запуск не должен падать.
-export KUBECONFIG=/etc/kubernetes/admin.conf
+if ! kubectl get node "$NODE_NAME" > /dev/null 2>&1; then
+    echo -e "\n ОШИБКА: нода $NODE_NAME не найдена в кластере"
+    exit 1
+fi
 if kubectl get node "$NODE_NAME" -o jsonpath='{.spec.taints}' | grep -q "control-plane"; then
     kubectl taint nodes "$NODE_NAME" node-role.kubernetes.io/control-plane-
 fi
