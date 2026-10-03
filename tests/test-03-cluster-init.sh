@@ -16,8 +16,7 @@ echo ""
 check "kubeconfig на месте (~/.kube/config)"   "[ -f \"$HOME/.kube/config\" ]"
 check "apiserver отвечает (/readyz)"           "kubectl get --raw=/readyz | grep -q ok"
 check "нода $NODE_NAME зарегистрирована"       "kubectl get node \"$NODE_NAME\" -o name"
-check "taint control-plane снят"               "[ -z \"\$(kubectl get node \"$NODE_NAME\" -o jsonpath='{.spec.taints}' | tr -d '[] \"[:space:]\"')\" ]"
-
+check "taint control-plane снят"  "! kubectl get node "$NODE_NAME" -o jsonpath='{.spec.taints}' | grep -q control-plane"
 echo ""
 echo "Справочно — состояние нод (NotReady = норма, CNI будет на этапе 5):"
 kubectl get nodes 2>/dev/null || true
