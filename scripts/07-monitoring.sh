@@ -18,6 +18,9 @@ fi
 # 2. Применяем манифесты мониторинга
 echo ""
 echo "Разворачиваю Prometheus и node-exporter..."
+# namespace — строго первым: иначе объекты из node-exporter.yaml
+# применяются раньше его создания и apply падает с NotFound
+kubectl apply -f k8s/monitoring/00-namespace.yaml
 kubectl apply -f k8s/monitoring/
 
 # 3. Ждём готовности

@@ -26,11 +26,10 @@ if [ -z "$GW_IP" ]; then
 fi
 
 TRACE="k8sproject-$(date +%s)"
-curl -sf "http://${GW_IP}/?trace=${TRACE}" > /dev/null || true
-sleep 12
 
-LOG_LINE="$(kubectl -n logging exec daemonset/fluentd -- sh -c "grep -h '${TRACE}' /var/log/fluentd/nginx-access*" 2>/dev/null || true)"
-# $ экранирован: переменная разворачивается внутри кавычек при eval
-check "запрос через Gateway попал в собранные логи" "[ -n \"\$LOG_LINE\" ]"
+# запрос повторяем на каждой итерации: если Fluentd ещё не обнаружил файл лога,
+# единственный ранний запрос мог бы не попасть в сбор
+check "запрос через Gateway попал в собранные логи" \
+      "retry 120 \"curl -sf --max-time 5 'http://${GW_IP}/?trace=${TRACE}' > /dev/null; kubectl -n logging exec daemonset/fluentd -- sh -c \\\"grep -qh '${TRACE}' /var/log/fluentd/nginx-access*\\\"\""
 
 finish

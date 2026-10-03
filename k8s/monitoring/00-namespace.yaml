@@ -1,0 +1,8 @@
+# Namespace мониторинга.
+# Вынесен в отдельный файл с префиксом 00-, чтобы `kubectl apply -f k8s/monitoring/`
+# (применяет файлы по алфавиту) создал namespace раньше node-exporter.yaml,
+# иначе: Error from server (NotFound): namespaces "monitoring" not found.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

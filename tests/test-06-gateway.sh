@@ -20,8 +20,9 @@ check "Gateway app-gateway существует"             "kubectl get gatewa
 check "Gateway получил внешний IP"                 "[ -n \"$GW_IP\" ]"
 check "HTTPRoute nginx-route существует"           "kubectl get httproute nginx-route -o name"
 check "HTTPRoute привязан к Gateway (Accepted)"    "[ \"\$(kubectl get httproute nginx-route -o jsonpath='{.status.parents[0].conditions[?(@.type==\"Accepted\")].status}')\" = True ]"
-check "HTTP через Gateway отвечает 200"            "curl -sf -o /dev/null -w '%{http_code}' http://$GW_IP/ | grep -q 200"
-check "Приложение отдаёт Hello World!"             "curl -sf http://$GW_IP/ | grep -q 'Hello World'"
+# до 90 с ожидания: прокси Envoy поднимается уже после выдачи IP
+check "HTTP через Gateway отвечает 200"            "retry 90 \"curl -sf -o /dev/null --max-time 5 -w '%{http_code}' http://$GW_IP/ | grep -q 200\""
+check "Приложение отдаёт Hello World!"             "retry 90 \"curl -sf --max-time 5 http://$GW_IP/ | grep -q 'Hello World'\""
 
 echo ""
 echo "Справочно — ресурсы Gateway API:"

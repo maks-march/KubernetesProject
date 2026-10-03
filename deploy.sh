@@ -69,4 +69,4 @@ GW_IP="$(kubectl get gateway app-gateway -o jsonpath='{.status.addresses[0].valu
 
 echo ""
 echo "Приложение:  curl http://${GW_IP:-<Gateway-IP>}/   (ожидание: Hello World!)"
-echo "Все тесты:   bash tests/run-all.sh"
+echo "Все тесты:   sudo bash test-deploy.sh"

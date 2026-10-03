@@ -2,11 +2,6 @@
 # Prometheus скрейпит node-exporter (метрики ноды) и сам себя.
 # Проверка: port-forward и запрос up{job="node-exporter"} = 1.
 
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
----
 # Конфигурация Prometheus: цели сбора метрик
 apiVersion: v1
 kind: ConfigMap

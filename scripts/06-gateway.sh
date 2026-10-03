@@ -69,8 +69,10 @@ kubectl -n envoy-gateway-system wait --for=condition=Available deployment/envoy-
 # 6. Gateway + HTTPRoute
 echo ""
 echo "Применяю Gateway и HTTPRoute..."
-kubectl apply -f k8s/gateway.yaml
-kubectl apply -f k8s/          # манифесты приложения (index-ConfigMap и пр.)
+kubectl apply -f k8s/nginx-deployment.yaml \
+               -f k8s/nginx-index.yaml \
+               -f k8s/nginx-service.yaml   # приложение (на случай запуска этапа отдельно)
+kubectl apply -f k8s/gateway.yaml          # GatewayClass + Gateway + HTTPRoute (CRD уже есть)
 
 # 7. Ждём внешний IP у Gateway
 echo ""
@@ -100,6 +102,48 @@ if [ -z "$GW_IP" ]; then
     [ -n "$ENVOY_SVC" ] && kubectl describe svc "$ENVOY_SVC" 2>&1 | tail -15 || true
     exit 1
 fi
+
+# 8. Ждём, пока Gateway станет PROGRAMMED и поднимется его прокси Envoy
+# IP выдаётся сразу, но data plane (Deployment envoy-<gw>) создаётся следом:
+# без этого ожидания первый же curl получает connection refused,
+# и тест этапа падает, хотя через минуту всё работает.
+echo ""
+echo "Жду готовности Gateway (condition Programmed)..."
+kubectl wait --for=condition=Programmed gateway/app-gateway --timeout=300s || true
+
+echo "Жду поды прокси Envoy для app-gateway..."
+for i in $(seq 1 60); do
+    PROXY_DEPLOY="$(kubectl -n envoy-gateway-system get deploy \
+        -l gateway.envoyproxy.io/owning-gateway-name=app-gateway \
+        -o name 2>/dev/null | head -1)"
+    [ -n "$PROXY_DEPLOY" ] && break
+    sleep 3
+done
+if [ -n "${PROXY_DEPLOY:-}" ]; then
+    kubectl -n envoy-gateway-system rollout status "$PROXY_DEPLOY" --timeout=300s || true
+fi
+
+# 9. Ждём реального ответа 200 по внешнему IP (до 3 минут)
+echo ""
+echo "Проверяю ответ http://${GW_IP}/ ..."
+HTTP_OK=0
+for i in $(seq 1 60); do
+    if curl -sf -o /dev/null --max-time 5 "http://${GW_IP}/"; then
+        HTTP_OK=1
+        break
+    fi
+    sleep 3
+done
+if [ "$HTTP_OK" -ne 1 ]; then
+    echo "ОШИБКА: Gateway получил IP ${GW_IP}, но HTTP не отвечает за 3 минуты"
+    echo ""
+    echo "Диагностика:"
+    kubectl get gateway app-gateway -o wide 2>&1 || true
+    kubectl describe gateway app-gateway 2>&1 | tail -20 || true
+    kubectl -n envoy-gateway-system get pods 2>&1 || true
+    exit 1
+fi
+echo "HTTP 200 получен"
 
 echo ""
 echo "Готово. Проверка приложения через Gateway API:"

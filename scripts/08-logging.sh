@@ -18,6 +18,9 @@ fi
 # 2. Применяем манифесты логирования
 echo ""
 echo "Разворачиваю Fluentd..."
+# namespace logging объявлен первым документом в fluentd.yaml,
+# но создаём его явно — на случай добавления новых файлов в k8s/logging/
+kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f k8s/logging/
 
 # при изменении ConfigMap под сам не перечитывает конфиг — рестартуем
@@ -34,11 +37,21 @@ if [ -n "$GW_IP" ]; then
     TRACE="k8sproject-$(date +%s)"
     echo ""
     echo "Проверка: запрос http://${GW_IP}/?trace=${TRACE}"
-    curl -sf "http://${GW_IP}/?trace=${TRACE}" > /dev/null || true
-    echo "Жду сбора лога (10 секунд, flush_interval = 5s)..."
-    sleep 10
-    if kubectl -n logging exec daemonset/fluentd -- sh -c "grep -h '${TRACE}' /var/log/fluentd/nginx-access*" 2>/dev/null; then
-        echo ""
+    echo "Жду появления записи в собранных логах (до 2 минут)..."
+    # запрос повторяем в каждой итерации: Fluentd после старта
+    # не сразу обнаруживает файл лога, и единственный ранний запрос
+    # мог бы остаться незамеченным
+    FOUND=0
+    for i in $(seq 1 24); do
+        curl -sf "http://${GW_IP}/?trace=${TRACE}" > /dev/null || true
+        sleep 5
+        if kubectl -n logging exec daemonset/fluentd -- \
+               sh -c "grep -qh '${TRACE}' /var/log/fluentd/nginx-access*" 2>/dev/null; then
+            FOUND=1
+            break
+        fi
+    done
+    if [ "$FOUND" -eq 1 ]; then
         echo "Запись найдена в собранных логах"
     else
         echo "Запись пока не найдена, прогони тест позже: bash tests/test-08-logging.sh"

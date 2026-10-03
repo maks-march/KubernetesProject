@@ -19,8 +19,15 @@ fi
 # 2. Применяем манифесты
 # kubectl apply идемпотентен: повторный запуск обновляет состояние
 echo ""
-echo "Применяю манифесты из k8s/ ..."
-kubectl apply -f k8s/
+echo "Применяю манифесты приложения ..."
+# применяем только манифесты приложения, по файлам.
+# ВАЖНО: не `kubectl apply -f k8s/` — туда попадает gateway.yaml, а CRD
+# Gateway API ставятся только на этапе 6, из-за чего apply падал
+# ("no matches for kind GatewayClass ... ensure CRDs are installed first")
+# и обрывал deploy.sh.
+kubectl apply -f k8s/nginx-deployment.yaml \
+               -f k8s/nginx-index.yaml \
+               -f k8s/nginx-service.yaml
 
 # 3. Ждём готовности деплоя
 echo ""

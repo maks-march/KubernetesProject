@@ -18,9 +18,10 @@ check "service prometheus существует"          "kubectl -n monitoring 
 check "service node-exporter существует"       "kubectl -n monitoring get service node-exporter -o name"
 
 # запросы к API Prometheus изнутри пода
-check "Prometheus видит target node-exporter"  "kubectl exec -n monitoring deployment/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=up' | grep -q node-exporter"
-check "target node-exporter UP (up = 1)"       "kubectl exec -n monitoring deployment/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22node-exporter%22%7D' | grep -q '\"1\"'"
-check "метрика node_cpu_seconds_total отдаётся" "kubectl exec -n monitoring deployment/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=node_cpu_seconds_total' | grep -q node_cpu_seconds_total"
+# первый скрейп приходит не мгновенно (scrape_interval 15s) — ждём до 90 с
+check "Prometheus видит target node-exporter"  "retry 90 \"kubectl exec -n monitoring deployment/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=up' | grep -q node-exporter\""
+check "target node-exporter UP (up = 1)"       "retry 90 \"kubectl exec -n monitoring deployment/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22node-exporter%22%7D' | grep -q '\\\"1\\\"'\""
+check "метрика node_cpu_seconds_total отдаётся" "retry 90 \"kubectl exec -n monitoring deployment/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=node_cpu_seconds_total' | grep -q node_cpu_seconds_total\""
 
 echo ""
 echo "Справочно — поды мониторинга:"

@@ -23,6 +23,17 @@ data:
       @id nginx-tail
       path /var/log/containers/*nginx*.log
       pos_file /var/log/fluentd/nginx.pos
+      # read_from_head: читаем файл с начала, а не с конца.
+      #   иначе запросы, сделанные до старта/рестарта Fluentd, теряются
+      #   и сквозная проверка этапа падает с первого раза.
+      #   Повторов не будет: позиция хранится в pos_file.
+      read_from_head true
+      # как часто искать новые файлы логов (по умолчанию 60 с — слишком долго
+      # после рестарта пода или пересоздания подов nginx)
+      refresh_interval 5
+      # отслеживание по inode: корректно переживает ротацию логов
+      follow_inodes true
+      rotate_wait 5
       tag nginx
       <parse>
         @type none

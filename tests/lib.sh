@@ -26,6 +26,20 @@ check() {
     fi
 }
 
+retry() {
+    # retry <секунды> <команда> — ждём, пока команда начнёт проходить.
+    # Нужен там, где состояние появляется с задержкой: прокси Envoy
+    # поднимается после выдачи IP, Prometheus скрейпит раз в 15 с,
+    # Fluentd сбрасывает буфер раз в 5 с.
+    local timeout="$1"; shift
+    local deadline=$(( SECONDS + timeout ))
+    until eval "$@"; do
+        [ "$SECONDS" -ge "$deadline" ] && return 1
+        sleep 3
+    done
+    return 0
+}
+
 finish() {
     echo "========================================"
     echo "Пройдено: $PASS   Ошибок: $FAIL"
