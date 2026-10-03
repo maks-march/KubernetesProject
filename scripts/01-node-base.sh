@@ -12,7 +12,8 @@ NODE_HOSTNAME="${1:?Usage: 01-node-base.sh <hostname>}"
 
 # 1. Без systemd kubeadm работать не будет
 if [ "$(ps -p 1 -o comm=)" != "systemd" ]; then
-    echo -e "\n ОШИБКА: systemd не является PID 1"
+    echo ""
+    echo "ОШИБКА: systemd не является PID 1"
     exit 1
 fi
 
@@ -22,7 +23,8 @@ hostnamectl set-hostname "$NODE_HOSTNAME"
 
 # 3. Запись в /etc/hosts, если её ещё нет
 if ! grep -q "$NODE_HOSTNAME" /etc/hosts; then
-    echo -e "\n 127.0.1.1 $NODE_HOSTNAME" >> /etc/hosts
+    echo ""
+    echo "127.0.1.1 $NODE_HOSTNAME" >> /etc/hosts
 fi
 
 # 4. Swap
@@ -38,13 +40,15 @@ sed -i.bak '/\bswap\b/s/^/#/' /etc/fstab
 # ничего не загрузит, но и не нужен. Проверяем фактическую доступность.
 modprobe overlay 2>/dev/null || true
 if ! grep -qw overlay /proc/filesystems; then
-    echo -e "\n ОШИБКА: overlayfs недоступна (нет ни модуля, ни встроенной поддержки)"
+    echo ""
+    echo "ОШИБКА: overlayfs недоступна (нет ни модуля, ни встроенной поддержки)"
     exit 1
 fi
 
 modprobe br_netfilter 2>/dev/null || true
 if [ ! -e /proc/sys/net/bridge/bridge-nf-call-iptables ]; then
-    echo -e "\n ОШИБКА: br_netfilter недоступен (нет ни модуля, ни встроенной поддержки)"
+    echo ""
+    echo "ОШИБКА: br_netfilter недоступен (нет ни модуля, ни встроенной поддержки)"
     exit 1
 fi
 
@@ -65,4 +69,5 @@ EOF
 
 sysctl --system > /dev/null
 
-echo -e "\n Готово. Проверка: sudo bash tests/test-01-node-base.sh $NODE_HOSTNAME"
+echo ""
+echo "Готово. Проверка: sudo bash tests/test-01-node-base.sh $NODE_HOSTNAME"

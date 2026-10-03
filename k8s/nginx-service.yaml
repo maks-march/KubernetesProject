@@ -1,0 +1,13 @@
+# Service: стабильное имя и IP для доступа к подам nginx.
+# Поды приходят и уходят, IP у них меняется — Service скрывает это.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: ClusterIP                 # доступен внутри кластера (снаружи откроем ingress-ом на этапе 6)
+  selector:
+    app: nginx                    # направляет трафик подам с этой меткой
+  ports:
+    - port: 80                    # порт сервиса
+      targetPort: 80              # порт контейнера

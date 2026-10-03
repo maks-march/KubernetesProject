@@ -1,0 +1,29 @@
+# Deployment: запускает N реплик nginx и следит за их состоянием.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 2                     # сколько копий подов держать
+  selector:
+    matchLabels:                  # Deployment управляет подами с этими метками
+      app: nginx
+  template:                       # шаблон пода
+    metadata:
+      labels:
+        app: nginx                # метка должна совпадать с selector выше
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:             # что под просит при планировании
+              cpu: 50m
+              memory: 64Mi
+            limits:               # потолок потребления
+              cpu: 200m
+              memory: 128Mi
