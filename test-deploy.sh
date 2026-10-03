@@ -61,8 +61,14 @@ if [ ${#AS_ROOT[@]} -gt 0 ]; then
     sudo -v || { echo "ОШИБКА: нет прав sudo" >&2; exit 1; }
 fi
 
-LOG_DIR="$(mktemp -d /tmp/test-deploy.XXXXXX)"
-trap 'echo ""; echo "Полные логи этапов: $LOG_DIR"' EXIT
+# логи текущего прогона: один фиксированный каталог, очищается при каждом старте
+# (не копится мусор; каталог в .gitignore)
+LOG_DIR="logs/test-deploy"
+rm -rf "$LOG_DIR"
+mkdir -p "$LOG_DIR"
+# чтобы логи не остались принадлежать root после sudo-запуска
+[ "$(id -u)" -eq 0 ] && [ "$REAL_USER" != root ] && chown -R "$REAL_USER" logs 2>/dev/null
+trap 'echo ""; echo "Логи этапов (перезаписываются при следующем запуске): $LOG_DIR/"' EXIT
 
 TOTAL=0            # всего этапов
 STAGES_OK=0        # этапов пройдено
