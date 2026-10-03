@@ -1,0 +1,96 @@
+# Логирование: Fluentd собирает access/error-логи nginx.
+# Логи контейнера лежат на ноде в /var/log/containers (containerd),
+# Fluentd их хвостит и пишет в /var/log/fluentd на ноде.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+---
+# Конфигурация Fluentd
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: logging
+data:
+  fluent.conf: |
+    # хвостим логи контейнеров nginx (access- и error-логи nginx
+    # пишутся в stdout/stderr контейнера, containerd кладёт их
+    # в /var/log/containers/<под>_nginx-<id>.log)
+    <source>
+      @type tail
+      @id nginx-tail
+      path /var/log/containers/*nginx*.log
+      pos_file /var/log/fluentd/nginx.pos
+      tag nginx
+      <parse>
+        @type none
+      </parse>
+    </source>
+
+    # складываем в файлы на ноде: /var/log/fluentd/nginx-access.*
+    <match nginx>
+      @type file
+      path /var/log/fluentd/nginx-access
+      append true
+      <buffer>
+        timekey 1d
+        flush_interval 5s
+      </buffer>
+    </match>
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: logging
+  labels:
+    app: fluentd
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+    spec:
+      containers:
+        - name: fluentd
+          image: fluent/fluentd:v1.19.2-2.3
+          securityContext:
+            runAsUser: 0          # нужен доступ на запись в /var/log/fluentd на ноде
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /fluentd/etc
+            - name: varlog-containers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlog-pods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: fluentd-logs
+              mountPath: /var/log/fluentd
+      volumes:
+        - name: config
+          configMap:
+            name: fluentd-config
+        # /var/log/containers — симлинки на /var/log/pods, монтируем оба
+        - name: varlog-containers
+          hostPath:
+            path: /var/log/containers
+        - name: varlog-pods
+          hostPath:
+            path: /var/log/pods
+        - name: fluentd-logs
+          hostPath:
+            path: /var/log/fluentd
+            type: DirectoryOrCreate

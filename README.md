@@ -14,6 +14,7 @@ Gateway API (Envoy Gateway)  ◄── IP выдаёт MetalLB
 Service nginx ──► Deployment nginx (2 реплики, Hello World!)
 
 Мониторинг: Prometheus ◄── node-exporter (метрики ноды)
+Логи: Fluentd ◄── /var/log/containers (access/error nginx) ──► /var/log/fluentd
 ```
 
 ## Технологии и версии
@@ -28,6 +29,7 @@ Service nginx ──► Deployment nginx (2 реплики, Hello World!)
 | LoadBalancer | MetalLB v0.16.1 (L2) |
 | Приложение | nginx:1.27-alpine |
 | Мониторинг | Prometheus v3.1.0, node-exporter v1.8.2 |
+| Логирование | Fluentd v1.19.2 |
 
 Ресурсы Gateway API: `GatewayClass` (eg, создаётся установщиком), `Gateway` (app-gateway, HTTP :80), `HTTPRoute` (nginx-route, `/` → Service nginx).
 
@@ -70,6 +72,9 @@ bash tests/test-06-gateway.sh
 
 bash scripts/07-monitoring.sh                   # Prometheus + node-exporter
 bash tests/test-07-monitoring.sh
+
+bash scripts/08-logging.sh                      # Fluentd (сбор логов nginx)
+bash tests/test-08-logging.sh
 ```
 
 Все скрипты идемпотентны: повторный запуск не приводит систему
@@ -102,7 +107,19 @@ kubectl -n monitoring port-forward svc/prometheus 9090:9090
 
 ## Проверка логирования
 
-Этап 8 (Fluentd) — в разработке, будет описано здесь.
+Fluentd v1.19.2 (DaemonSet, namespace `logging`) собирает access/error-логи
+nginx из `/var/log/containers` и пишет в `/var/log/fluentd` на ноде
+(flush каждые 5 секунд).
+
+```bash
+GW_IP=$(kubectl get gateway app-gateway -o jsonpath='{.status.addresses[0].value}')
+
+curl "http://${GW_IP}/?trace=expert-check-123"          # уникальный запрос
+
+sleep 10
+kubectl -n logging exec daemonset/fluentd -- \
+  sh -c 'grep -h expert-check-123 /var/log/fluentd/nginx-access*'   # запись найдена
+```
 
 ## Структура репозитория
 
