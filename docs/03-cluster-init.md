@@ -1,4 +1,4 @@
-# Этап 4. Кластер: kubeadm init (single-node) + снятие taint
+# Этап 3. Кластер: kubeadm init (single-node) + снятие taint
 
 ## Что делает `kubeadm init`
 
@@ -14,7 +14,7 @@
 
 Аргументы:
 - `--apiserver-advertise-address` — IP, на котором apiserver ждёт kubelet/клиентов
-- `--pod-network-cidr 10.244.0.0/16` — адреса подов; **обязан совпадать** с CIDR CNI (этап 5 — flannel)
+- `--pod-network-cidr 10.244.0.0/16` — адреса подов; **обязан совпадать** с CIDR CNI (этап 4 — flannel)
 - `--node-name` — имя ноды в кластере
 
 ## Single-node: снятие taint
@@ -31,18 +31,18 @@
 ## Порядок работы
 
 ```bash
-sudo bash tests/test-04-cluster-init.sh 2>/dev/null || true   # понять, что кластера ещё нет
-sudo bash scripts/04-cluster-init.sh
-bash tests/test-04-cluster-init.sh     # БЕЗ sudo
+sudo bash tests/test-03-cluster-init.sh 2>/dev/null || true   # понять, что кластера ещё нет
+sudo bash scripts/03-cluster-init.sh
+bash tests/test-03-cluster-init.sh     # БЕЗ sudo
 ```
 
 ## Ожидаемые ошибки (это часть плана!)
 
 - **`[ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]`** —
-  ядро не настроено → выполни этап 3 (`sudo bash scripts/03-kernel-extras.sh`)
-  и повтори этап 4
+  ядро не настроено → значит этап 1 (`01-node-base.sh`) выполнен не полностью
+  и повтори этап 3
 - После успешного init: нода будет **NotReady** — так и должно быть, pod-сеть
-  появится на этапе 5 (CNI). CoreDNS тоже Pending по этой же причине.
+  появится на этапе 4 (CNI). CoreDNS тоже Pending по этой же причине.
 
 ## Проверить руками
 

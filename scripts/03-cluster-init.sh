@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # ============================================================================
-# 04-cluster-init.sh
-# Этап 4: kubeadm init (single-node) и снятие taint.
-# Запуск: sudo bash scripts/04-cluster-init.sh
+# 03-cluster-init.sh
+# Этап 3: kubeadm init (single-node) и снятие taint.
+# Если kubeadm падает на preflight (swap, bridge-nf-call-iptables),
+# значит этап 1 (01-node-base.sh) выполнен не полностью.
+# Запуск: sudo bash scripts/03-cluster-init.sh
 # ============================================================================
 
 set -euo pipefail
@@ -38,4 +40,4 @@ chmod 600 "$USER_HOME/.kube/config"
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl taint nodes --all node-role.kubernetes.io/control-plane- --ignore-not-found
 
-echo "Готово. Проверка (без sudo): bash tests/test-04-cluster-init.sh"
+echo "Готово. Проверка (без sudo): bash tests/test-03-cluster-init.sh"
