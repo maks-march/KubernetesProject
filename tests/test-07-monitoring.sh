@@ -12,8 +12,10 @@ source "$(dirname "$0")/lib.sh"
 echo "Этап 7: мониторинг (Prometheus + node-exporter)"
 echo ""
 
-check "deployment prometheus готов"            "[ \"\$(kubectl -n monitoring get deployment prometheus -o jsonpath='{.status.readyReplicas}')\" = 1 ]"
-check "node-exporter запущен"                  "kubectl -n monitoring get pods -l app=node-exporter --no-headers | grep -q Running"
+prom_ready() { [ "$(kubectl -n monitoring get deployment prometheus -o jsonpath='{.status.readyReplicas}' 2>/dev/null)" = 1 ]; }
+
+check "deployment prometheus готов"            "retry 180 prom_ready"
+check "node-exporter запущен"                  "retry 180 \"kubectl -n monitoring get pods -l app=node-exporter --no-headers | grep -q Running\""
 check "service prometheus существует"          "kubectl -n monitoring get service prometheus -o name"
 check "service node-exporter существует"       "kubectl -n monitoring get service node-exporter -o name"
 

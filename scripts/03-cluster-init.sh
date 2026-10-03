@@ -55,6 +55,11 @@ echo "apiserver готов"
 # 4. Taint
 # kubeadm запрещает обычным подам работать на control-plane (taint NoSchedule).
 # Нода одна, поэтому taint снимаем, иначе поды навсегда останутся в Pending.
+# нода регистрируется kubelet-ом через несколько секунд после init
+for i in $(seq 1 60); do
+    kubectl get node "$NODE_NAME" > /dev/null 2>&1 && break
+    sleep 2
+done
 if ! kubectl get node "$NODE_NAME" > /dev/null 2>&1; then
     echo ""
     echo "ОШИБКА: нода $NODE_NAME не найдена в кластере"

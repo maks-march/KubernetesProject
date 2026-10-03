@@ -34,5 +34,13 @@ echo ""
 echo "Жду готовности подов nginx (тянутся образы)..."
 kubectl rollout status deployment/nginx --timeout=300s
 
+# endpoints появляются чуть позже готовности подов
+echo ""
+echo "Жду endpoints сервиса nginx..."
+for i in $(seq 1 60); do
+    [ -n "$(kubectl get endpoints nginx -o jsonpath='{.subsets[0].addresses[0].ip}' 2>/dev/null)" ] && break
+    sleep 2
+done
+
 echo ""
 echo "Готово. Проверка: bash tests/test-05-nginx.sh"

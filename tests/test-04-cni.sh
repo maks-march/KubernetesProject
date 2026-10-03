@@ -8,16 +8,19 @@
 set -uo pipefail
 
 source "$(dirname "$0")/lib.sh"
-NODE_NAME="$(hostname)"
+NODE_NAME="$(hostname | tr 'A-Z' 'a-z')"
 
 echo "Этап 4: CNI (pod-сеть)"
 echo "Нода: $NODE_NAME"
 echo ""
 
-check "поды flannel запущены"      "kubectl get pods -A --no-headers | grep flannel | grep -q Running"
-check "интерфейс flannel.1 есть"   "ip link show flannel.1"
-check "нода Ready"                 "[ \"\$(kubectl get node \"\$NODE_NAME\" --no-headers | awk '{print \$2}')\" = Ready ]"
-check "CoreDNS запущен"            "kubectl get pods -n kube-system --no-headers | grep coredns | grep -q Running"
+# ожидания: нода становится Ready раньше, чем поднимается vxlan-интерфейс
+# flannel.1 и доезжают поды CoreDNS
+check "поды flannel запущены"      "retry 180 \"kubectl get pods -A --no-headers | grep flannel | grep -q Running\""
+check "интерфейс flannel.1 есть"   "retry 120 \"ip link show flannel.1\""
+node_ready() { [ "$(kubectl get node "$NODE_NAME" --no-headers 2>/dev/null | awk '{print $2}')" = Ready ]; }
+check "нода Ready"                 "retry 180 node_ready"
+check "CoreDNS запущен"            "retry 180 \"kubectl get pods -n kube-system --no-headers | grep coredns | grep -q Running\""
 
 echo ""
 echo "Справочно — состояние нод и системных подов:"

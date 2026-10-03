@@ -9,7 +9,10 @@ set -uo pipefail
 
 source "$(dirname "$0")/lib.sh"
 
-GW_IP="$(kubectl get gateway app-gateway -o jsonpath='{.status.addresses[0].value}' 2>/dev/null)"
+gw_ip() { kubectl get gateway app-gateway -o jsonpath='{.status.addresses[0].value}' 2>/dev/null; }
+# MetalLB выдаёт адрес не мгновенно — ждём (в FAST_CHECK режиме проверка разовая)
+retry 120 "[ -n \"\$(gw_ip)\" ]" > /dev/null 2>&1
+GW_IP="$(gw_ip)"
 
 echo "Этап 6: Gateway API (Envoy Gateway + MetalLB)"
 echo "IP Gateway: ${GW_IP:-не получен}"

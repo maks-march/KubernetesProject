@@ -11,26 +11,6 @@ set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 NODE_NAME="$(hostname)"
 
-# Какой kubeconfig реально используется:
-#   1) переменная KUBECONFIG (её выставляет deploy.sh / test-deploy.sh),
-#   2) под sudo — конфиг пользователя, вызвавшего sudo (а не /root),
-#   3) иначе ~/.kube/config текущего пользователя.
-if [ -n "${KUBECONFIG:-}" ]; then
-    KUBECFG="$KUBECONFIG"
-elif [ -n "${SUDO_USER:-}" ]; then
-    KUBECFG="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.kube/config"
-    export KUBECONFIG="$KUBECFG"
-else
-    KUBECFG="$HOME/.kube/config"
-fi
-
-# запасной вариант: конфига пользователя нет, но кластер есть и мы root —
-# работаем по admin.conf, иначе kubectl ушёл бы на localhost:8080
-if [ ! -f "$KUBECFG" ] && [ -r /etc/kubernetes/admin.conf ]; then
-    echo "ПРИМЕЧАНИЕ: $KUBECFG не найден, использую /etc/kubernetes/admin.conf"
-    export KUBECONFIG=/etc/kubernetes/admin.conf
-fi
-
 echo "Этап 3: кластер kubeadm (single-node, taint снят)"
 echo "Нода: $NODE_NAME"
 echo ""

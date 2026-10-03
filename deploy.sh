@@ -38,6 +38,11 @@ fi
 REAL_USER="${SUDO_USER:-$(id -un)}"
 USER_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 export KUBECONFIG="${USER_HOME:-/root}/.kube/config"
+# кластера ещё нет -> конфига нет; если он уже есть только у root/admin.conf,
+# подхватываем его, иначе kubectl ушёл бы на localhost:8080
+if [ ! -f "$KUBECONFIG" ] && [ -r /etc/kubernetes/admin.conf ]; then
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+fi
 
 echo "=============================================="
 echo "Деплой KubernetesProject"
@@ -53,7 +58,9 @@ stage() {
     echo ">>> ${title}"
 
     # тихая проверка: этап уже пройден?
-    if bash "$test" "$@" > /dev/null 2>&1; then
+    # FAST_CHECK=1 — тесты не ждут появления ресурсов (без этого проверка
+    # невыполненного этапа тянулась бы минутами)
+    if FAST_CHECK=1 bash "$test" "$@" > /dev/null 2>&1; then
         echo "    уже настроено, пропускаю"
         return 0
     fi

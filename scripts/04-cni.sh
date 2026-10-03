@@ -37,14 +37,38 @@ else
     FLANNEL_NS=kube-system
 fi
 echo ""
+echo "Жду создания подов flannel..."
+# kubectl wait сразу после apply падает с "no matching resources found":
+# DaemonSet ещё не успел создать поды. Сначала дожидаемся их появления.
+for i in $(seq 1 60); do
+    if [ -n "$(kubectl -n "$FLANNEL_NS" get pods -l app=flannel \
+                 -o name 2>/dev/null)" ]; then
+        break
+    fi
+    sleep 2
+done
+
 echo "Жду готовности подов flannel (тянутся образы, может занять пару минут)..."
 kubectl -n "$FLANNEL_NS" wait --for=condition=Ready pod -l app=flannel --timeout=600s
 
 # 4. Ждём Ready ноды
-NODE_NAME="$(hostname)"
+NODE_NAME="$(hostname | tr 'A-Z' 'a-z')"
 echo ""
 echo "Жду Ready ноды $NODE_NAME..."
 kubectl wait --for=condition=Ready "node/$NODE_NAME" --timeout=300s
+
+# 5. Ждём интерфейс flannel.1 и CoreDNS
+# нода становится Ready раньше, чем поднимается vxlan-интерфейс
+# и доезжают поды CoreDNS, — без ожидания тест этапа падает с первого раза
+echo ""
+echo "Жду интерфейс flannel.1..."
+for i in $(seq 1 60); do
+    ip link show flannel.1 > /dev/null 2>&1 && break
+    sleep 3
+done
+
+echo "Жду готовности CoreDNS..."
+kubectl -n kube-system rollout status deployment/coredns --timeout=300s
 
 echo ""
 echo "Готово. Проверка: bash tests/test-04-cni.sh"
