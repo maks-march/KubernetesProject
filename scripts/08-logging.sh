@@ -20,6 +20,9 @@ echo ""
 echo "Разворачиваю Fluentd..."
 kubectl apply -f k8s/logging/
 
+# при изменении ConfigMap под сам не перечитывает конфиг — рестартуем
+kubectl -n logging rollout restart daemonset/fluentd
+
 # 3. Ждём готовности
 echo ""
 echo "Жду готовности Fluentd (тянутся образы)..."

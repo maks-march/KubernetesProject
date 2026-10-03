@@ -36,6 +36,7 @@ data:
       append true
       <buffer>
         timekey 1d
+        flush_mode interval     # без этого буфер живёт сутки до сброса (lazy)
         flush_interval 5s
       </buffer>
     </match>
