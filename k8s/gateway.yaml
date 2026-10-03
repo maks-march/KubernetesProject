@@ -1,7 +1,13 @@
-# Gateway API: точка входа и маршрут к приложению.
-# Реализация — Envoy Gateway (ставится scripts/06-gateway.sh),
-# GatewayClass "eg" создаётся установщиком Envoy Gateway автоматически.
+# GatewayClass: объявляет, что Gateway'ы класса eg обслуживает Envoy Gateway.
+# controllerName — фиксированное значение контроллера Envoy Gateway.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
 
+---
 # Gateway: слушатель на порту 80.
 # Envoy Gateway создаёт для него Service типа LoadBalancer,
 # IP выдаёт MetalLB.
