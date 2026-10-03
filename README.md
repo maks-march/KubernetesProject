@@ -12,9 +12,9 @@ Gateway API (Envoy Gateway)  ◄── IP выдаёт MetalLB
    │  HTTPRoute /
    ▼
 Service nginx ──► Deployment nginx (2 реплики, Hello World!)
-```
 
-Мониторинг (Prometheus) и сбор логов (Fluentd) — этапы 7–8, в разработке.
+Мониторинг: Prometheus ◄── node-exporter (метрики ноды)
+```
 
 ## Технологии и версии
 
@@ -27,6 +27,7 @@ Service nginx ──► Deployment nginx (2 реплики, Hello World!)
 | Реализация Gateway API | **Envoy Gateway v1.5.0** |
 | LoadBalancer | MetalLB v0.16.1 (L2) |
 | Приложение | nginx:1.27-alpine |
+| Мониторинг | Prometheus v3.1.0, node-exporter v1.8.2 |
 
 Ресурсы Gateway API: `GatewayClass` (eg, создаётся установщиком), `Gateway` (app-gateway, HTTP :80), `HTTPRoute` (nginx-route, `/` → Service nginx).
 
@@ -66,6 +67,9 @@ bash tests/test-05-nginx.sh
 
 bash scripts/06-gateway.sh                      # MetalLB + Envoy Gateway + Gateway/HTTPRoute
 bash tests/test-06-gateway.sh
+
+bash scripts/07-monitoring.sh                   # Prometheus + node-exporter
+bash tests/test-07-monitoring.sh
 ```
 
 Все скрипты идемпотентны: повторный запуск не приводит систему
@@ -80,7 +84,21 @@ curl http://$GW_IP/        # ожидание: страница со строк�
 
 ## Проверка мониторинга
 
-Этап 7 (Prometheus) — в разработке, будет описано здесь.
+Собираемые метрики (Prometheus v3.1.0):
+
+- **node-exporter** — метрики ноды: `node_cpu_seconds_total` (CPU),
+  `node_memory_MemAvailable_bytes` (память), `node_filesystem_avail_bytes` (диск)
+- **prometheus** — сам Prometheus
+
+Проверка:
+
+```bash
+kubectl -n monitoring port-forward svc/prometheus 9090:9090
+```
+
+- `http://localhost:9090/targets` — оба target в состоянии UP
+- PromQL-запрос `up{job="node-exporter"}` возвращает `1`
+- PromQL-запрос `node_cpu_seconds_total` возвращает серии метрик
 
 ## Проверка логирования
 

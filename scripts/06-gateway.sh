@@ -83,6 +83,21 @@ for i in $(seq 1 60); do
 done
 if [ -z "$GW_IP" ]; then
     echo "ОШИБКА: Gateway не получил IP за 3 минуты"
+    echo ""
+    echo "Диагностика:"
+    echo "--- GatewayClass (ожидаем: eg с контроллером envoy)"
+    kubectl get gatewayclass 2>&1 || true
+    echo "--- Поды Envoy Gateway"
+    kubectl -n envoy-gateway-system get pods 2>&1 || true
+    echo "--- Service envoy (LOADBALANCER: ждём внешний IP)"
+    kubectl get svc 2>/dev/null | grep -E 'NAME|envoy' || true
+    echo "--- Поды MetalLB (controller + speaker)"
+    kubectl -n metallb-system get pods 2>&1 || true
+    echo "--- Пул адресов и L2"
+    kubectl get ipaddresspool,l2advertisement -n metallb-system 2>&1 || true
+    echo "--- События Service envoy"
+    ENVOY_SVC="$(kubectl get svc 2>/dev/null | awk '/^envoy/{print $1}' | head -1)"
+    [ -n "$ENVOY_SVC" ] && kubectl describe svc "$ENVOY_SVC" 2>&1 | tail -15 || true
     exit 1
 fi
 
