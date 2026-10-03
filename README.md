@@ -31,7 +31,9 @@ Service nginx ──► Deployment nginx (2 реплики, Hello World!)
 | Мониторинг | Prometheus v3.1.0, node-exporter v1.8.2 |
 | Логирование | Fluentd v1.19.2 |
 
-Ресурсы Gateway API: `GatewayClass` (eg, создаётся установщиком), `Gateway` (app-gateway, HTTP :80), `HTTPRoute` (nginx-route, `/` → Service nginx).
+Ресурсы Gateway API: `GatewayClass` (eg, объявлен в k8s/gateway.yaml — установщик
+Envoy Gateway v1.5.0 сам его не создаёт), `Gateway` (app-gateway, HTTP :80),
+`HTTPRoute` (nginx-route, `/` → Service nginx).
 
 ## Требования к среде
 
@@ -41,44 +43,40 @@ Service nginx ──► Deployment nginx (2 реплики, Hello World!)
 
 ## Развёртывание
 
-Склонировать репозиторий и выполнять этапы по порядку. Каждый этап:
-тест (ожидаем FAIL) → скрипт → тест (ожидаем PASS).
-
-**Подготовка ноды и кластера (sudo):**
+Склонировать репозиторий и выполнить одну команду:
 
 ```bash
-sudo bash scripts/01-node-base.sh k8s-node      # hostname, swap, ядро
-sudo bash tests/test-01-node-base.sh k8s-node
-
-sudo bash scripts/02-packages.sh                # containerd, kubeadm/kubelet/kubectl,
-                                                # + скачивание манифестов зависимостей в deps/
-sudo bash tests/test-02-packages.sh
-
-sudo bash scripts/03-cluster-init.sh            # kubeadm init + снятие taint
-bash tests/test-03-cluster-init.sh              # без sudo
+sudo bash deploy.sh    # полное развёртывание: этапы 1-8
 ```
 
-**Инфраструктура в кластере (без sudo):**
+Как это работает: каждый этап сначала проверяется тестом. Тест пройден —
+этап пропускается, не пройден — применяется скрипт этапа и тест повторяется.
+Повторный запуск `deploy.sh` на развёрнутой системе ничего не меняет
+(идемпотентность).
+
+Имя ноды можно задать аргументом: `sudo bash deploy.sh k8s-node`
+(по умолчанию используется текущий hostname).
+
+Проверить всё после деплоя:
 
 ```bash
-bash scripts/04-cni.sh                          # flannel, нода становится Ready
-bash tests/test-04-cni.sh
-
-bash scripts/05-nginx.sh                        # Deployment + Service nginx
-bash tests/test-05-nginx.sh
-
-bash scripts/06-gateway.sh                      # MetalLB + Envoy Gateway + Gateway/HTTPRoute
-bash tests/test-06-gateway.sh
-
-bash scripts/07-monitoring.sh                   # Prometheus + node-exporter
-bash tests/test-07-monitoring.sh
-
-bash scripts/08-logging.sh                      # Fluentd (сбор логов nginx)
-bash tests/test-08-logging.sh
+bash test-deploy.sh    # тесты этапов 3-8 со сводкой
 ```
 
-Все скрипты идемпотентны: повторный запуск не приводит систему
-в некорректное состояние.
+Ручной запуск отдельных этапов — см. docs/.
+
+Этапы развёртывания (каждому соответствует тест `tests/test-NN-*.sh`):
+
+| Этап | Скрипт | Что делает |
+|---|---|---|
+| 1 | scripts/01-node-base.sh | hostname, swap off, модули ядра, sysctl |
+| 2 | scripts/02-packages.sh | containerd, kubeadm/kubelet/kubectl v1.37, манифесты зависимостей → deps/ |
+| 3 | scripts/03-cluster-init.sh | kubeadm init, kubeconfig, снятие taint (single-node) |
+| 4 | scripts/04-cni.sh | flannel (pod CIDR 10.244.0.0/16) |
+| 5 | scripts/05-nginx.sh | Deployment nginx (2 реплики) + Service + ConfigMap |
+| 6 | scripts/06-gateway.sh | MetalLB + Envoy Gateway + Gateway/HTTPRoute |
+| 7 | scripts/07-monitoring.sh | Prometheus + node-exporter |
+| 8 | scripts/08-logging.sh | Fluentd (DaemonSet, сбор логов nginx) |
 
 ## Проверка приложения (через Gateway API)
 
@@ -124,16 +122,20 @@ kubectl -n logging exec daemonset/fluentd -- \
 ## Структура репозитория
 
 ```
-k8s/       — манифесты Kubernetes (приложение, Gateway API)
-scripts/   — скрипты этапов (идемпотентные)
-tests/     — тесты этапов (bash, без зависимостей)
-docs/      — документация по каждому этапу
-deps/      — скачанные манифесты зависимостей (создаёт этап 02, в git не хранится)
+deploy.sh       — деплой всех этапов одной командой (тест → скрипт → тест)
+test-deploy.sh  — прогон всех тестов со сводкой
+k8s/            — манифесты: приложение, Gateway API, мониторинг, логирование
+scripts/        — скрипты этапов (идемпотентные)
+tests/          — тесты этапов (bash, без зависимостей)
+docs/           — документация по каждому этапу
+deps/           — скачанные манифесты зависимостей (создаёт этап 02, в git не хранится)
 ```
 
 ## Известные ограничения
 
 - Кластер single-node: отказоустойчивости нет (учебная архитектура)
-- Пул MetalLB `.200–.250` в /24 подсети ноды: при занятом DHCP-диапазоне адреса изменить в `scripts/06-gateway.sh`
+- Установка требует интернет: сторонние манифесты качаются этапом 2, образы — при первом apply (офлайн не поддерживается)
+- Пул MetalLB `.200–.250` в /24 подсети ноды: при занятом DHCP-диапазоне адреса изменить в `k8s/metallb-pool.yaml.template`
+- В WSL2 внешний IP Gateway (MetalLB L2) может не отвечать с Windows-хоста — проверять `curl` с самой Linux-ноды; на обычной Linux-машине IP доступен с любого хоста той же L2-сети
 - Если IP ноды меняется между перезагрузками (WSL/DHCP), сертификаты kubeadm сломаются — кластер рассчитан на машину со стабильным IP
 - `--pod-network-cidr` (этап 3) обязан совпадать с CIDR flannel
