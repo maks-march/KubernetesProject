@@ -8,8 +8,7 @@
 
 set -euo pipefail
 
-FLANNEL_VERSION="latest"   # для воспроизводимости можно зафиксировать версию, напр. v0.27.0
-NODE_NAME="$(hostname)"
+cd "$(dirname "$0")/.."
 
 # 1. Kubeconfig
 # если запустили через sudo, kubectl смотрел бы в /root/.kube — переводим
@@ -20,11 +19,15 @@ if [ -n "${SUDO_USER:-}" ]; then
 fi
 
 # 2. Установка flannel
-# манифест рассчитан на pod CIDR 10.244.0.0/16,
-# он должен совпадать с --pod-network-cidr из kubeadm init (этап 3)
+# манифест скачан на этапе 2 в deps/
+if [ ! -s deps/kube-flannel.yml ]; then
+    echo ""
+    echo "ОШИБКА: deps/kube-flannel.yml не найден. Сначала выполни scripts/02-packages.sh"
+    exit 1
+fi
 echo ""
-echo "Устанавливаю flannel..."
-kubectl apply -f "https://github.com/flannel-io/flannel/releases/${FLANNEL_VERSION}/download/kube-flannel.yml"
+echo "Устанавливаю flannel из deps/kube-flannel.yml..."
+kubectl apply -f deps/kube-flannel.yml
 
 # 3. Ждём поды flannel
 # в свежих версиях namespace kube-flannel, в старых kube-system
@@ -38,6 +41,7 @@ echo "Жду готовности подов flannel (тянутся образ�
 kubectl -n "$FLANNEL_NS" wait --for=condition=Ready pod -l app=flannel --timeout=600s
 
 # 4. Ждём Ready ноды
+NODE_NAME="$(hostname)"
 echo ""
 echo "Жду Ready ноды $NODE_NAME..."
 kubectl wait --for=condition=Ready "node/$NODE_NAME" --timeout=300s

@@ -16,6 +16,8 @@ echo ""
 check "kubeconfig на месте (~/.kube/config)"   "[ -f \"$HOME/.kube/config\" ]"
 check "apiserver отвечает (/readyz)"           "kubectl get --raw=/readyz | grep -q ok"
 check "нода $NODE_NAME зарегистрирована"       "kubectl get node \"$NODE_NAME\" -o name"
+# проверяем именно control-plane: у NotReady-ноды есть ещё служебный taint
+# node.kubernetes.io/not-ready, он уйдёт сам после установки CNI
 check "taint control-plane снят"               "! kubectl get node \"$NODE_NAME\" -o jsonpath='{.spec.taints}' | grep -q control-plane"
 
 echo ""

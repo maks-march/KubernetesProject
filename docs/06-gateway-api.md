@@ -31,9 +31,9 @@
 
 ## Что делает скрипт `scripts/06-gateway.sh`
 
-1. Ставит MetalLB официальным манифестом, ждёт готовности подов
+1. Ставит MetalLB из deps/metallb-native.yaml (этап 2), ждёт готовности подов
 2. Создаёт IPAddressPool + L2Advertisement (адаптивно под сеть кластера)
-3. Ставит Envoy Gateway (install.yaml, server-side apply), ждёт контроллер
+3. Ставит Envoy Gateway из deps/envoy-gateway-install.yaml (этап 2), ждёт контроллер
 4. Применяет `k8s/gateway.yaml` и манифесты приложения
 5. Ждёт внешний IP у Gateway (до 3 минут), печатит команду проверки
 

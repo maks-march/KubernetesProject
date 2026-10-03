@@ -23,7 +23,7 @@ single-node кластера достаточно.
 
 ## Что делает скрипт `scripts/04-cni.sh`
 
-1. `kubectl apply` официального манифеста flannel
+1. Применяет `deps/kube-flannel.yml` (скачан на этапе 2)
 2. Ждёт Ready подов flannel (образы тянутся с docker.io, первый раз пару минут)
 3. Ждёт Ready ноды
 

@@ -5,9 +5,11 @@
 # ============================================================================
 set -uo pipefail
 
+cd "$(dirname "$0")/.."
+
 source "$(dirname "$0")/lib.sh"
 
-echo "Этап 2: пакеты и окружение (containerd + kubeadm/kubelet/kubectl)"
+echo "Этап 2: пакеты и окружение (containerd + kubeadm/kubelet/kubectl + deps)"
 echo ""
 
 check "containerd установлен"                    "command -v containerd"
@@ -19,5 +21,8 @@ check "kubelet установлен"                       "command -v kubelet"
 check "kubectl установлен"                       "command -v kubectl"
 check "пакеты k8s зафиксированы (hold)"          "apt-mark showhold | grep -q kubelet"
 check "версии kubeadm и kubelet совпадают"       "[ \"\$(kubeadm version -o short 2>/dev/null)\" = \"\$(kubelet --version | awk '{print \$2}')\" ]"
+check "манифест flannel скачан (deps/)"          "[ -s deps/kube-flannel.yml ]"
+check "манифест MetalLB скачан (deps/)"          "[ -s deps/metallb-native.yaml ]"
+check "манифест Envoy Gateway скачан (deps/)"    "[ -s deps/envoy-gateway-install.yaml ]"
 
 finish

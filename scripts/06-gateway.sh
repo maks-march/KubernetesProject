@@ -5,13 +5,11 @@
 #   1) MetalLB (LoadBalancer для bare-metal) + пул адресов
 #   2) Envoy Gateway (реализация Gateway API)
 #   3) Gateway + HTTPRoute (k8s/gateway.yaml)
+# Манифесты MetalLB и Envoy Gateway скачаны на этапе 2 (deps/).
 # Запуск: bash scripts/06-gateway.sh   (sudo не нужен)
 # ============================================================================
 
 set -euo pipefail
-
-METALLB_VERSION="v0.16.1"
-ENVOY_GATEWAY_VERSION="v1.5.0"
 
 cd "$(dirname "$0")/.."
 
@@ -21,15 +19,24 @@ if [ -n "${SUDO_USER:-}" ]; then
     export KUBECONFIG="$USER_HOME/.kube/config"
 fi
 
-# 2. MetalLB
+# 2. Проверяем зависимости из этапа 2
+for f in deps/metallb-native.yaml deps/envoy-gateway-install.yaml; do
+    if [ ! -s "$f" ]; then
+        echo ""
+        echo "ОШИБКА: $f не найден. Сначала выполни scripts/02-packages.sh"
+        exit 1
+    fi
+done
+
+# 3. MetalLB
 # На bare-metal kubeadm нет LoadBalancer — без него Service Gateway
 # не получит внешний IP. MetalLB выдаёт IP из пула в L2-режиме.
 echo ""
-echo "Устанавливаю MetalLB ${METALLB_VERSION}..."
-kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/${METALLB_VERSION}/config/manifests/metallb-native.yaml"
+echo "Устанавливаю MetalLB из deps/metallb-native.yaml..."
+kubectl apply -f deps/metallb-native.yaml
 kubectl -n metallb-system wait --for=condition=Ready pod --all --timeout=600s
 
-# 3. Пул адресов для MetalLB
+# 4. Пул адресов для MetalLB
 # Берём подсеть ноды и выделяем диапазон .200-.250:
 # работает в любой сети, где развёрнут кластер.
 NODE_IP="$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
@@ -53,19 +60,19 @@ metadata:
   namespace: metallb-system
 EOF
 
-# 4. Envoy Gateway — реализация Gateway API
+# 5. Envoy Gateway — реализация Gateway API
 echo ""
-echo "Устанавливаю Envoy Gateway ${ENVOY_GATEWAY_VERSION} (тянутся образы)..."
-kubectl apply --server-side -f "https://github.com/envoyproxy/gateway/releases/download/${ENVOY_GATEWAY_VERSION}/install.yaml"
+echo "Устанавливаю Envoy Gateway из deps/envoy-gateway-install.yaml (тянутся образы)..."
+kubectl apply --server-side -f deps/envoy-gateway-install.yaml
 kubectl -n envoy-gateway-system wait --for=condition=Available deployment/envoy-gateway --timeout=600s
 
-# 5. Gateway + HTTPRoute
+# 6. Gateway + HTTPRoute
 echo ""
 echo "Применяю Gateway и HTTPRoute..."
 kubectl apply -f k8s/gateway.yaml
 kubectl apply -f k8s/          # манифесты приложения (index-ConfigMap и пр.)
 
-# 6. Ждём внешний IP у Gateway
+# 7. Ждём внешний IP у Gateway
 echo ""
 echo "Жду внешний IP у Gateway (MetalLB + Envoy)..."
 GW_IP=""
