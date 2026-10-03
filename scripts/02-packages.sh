@@ -27,7 +27,7 @@ systemctl enable containerd
 mkdir -p /etc/apt/keyrings
 curl -fsSL "https://pkgs.kubernetes.io/core:/stable:/${K8S_MINOR}/deb/Release.key" \
   | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.kubernetes.io/core:/stable:/${K8S_MINOR}/deb/ /" \
+echo -e "\n deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.kubernetes.io/core:/stable:/${K8S_MINOR}/deb/ /" \
   > /etc/apt/sources.list.d/kubernetes.list
 
 # 4. Пакеты Kubernetes
@@ -37,4 +37,4 @@ apt-get update
 apt-get install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 
-echo "Готово. Проверка: sudo bash tests/test-02-packages.sh"
+echo -e "\n Готово. Проверка: sudo bash tests/test-02-packages.sh"

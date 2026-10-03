@@ -12,7 +12,7 @@ NODE_HOSTNAME="${1:?Usage: 01-node-base.sh <hostname>}"
 
 # 1. Без systemd kubeadm работать не будет
 if [ "$(ps -p 1 -o comm=)" != "systemd" ]; then
-    echo "ОШИБКА: systemd не является PID 1"
+    echo -e "\n ОШИБКА: systemd не является PID 1"
     exit 1
 fi
 
@@ -22,7 +22,7 @@ hostnamectl set-hostname "$NODE_HOSTNAME"
 
 # 3. Запись в /etc/hosts, если её ещё нет
 if ! grep -q "$NODE_HOSTNAME" /etc/hosts; then
-    echo "127.0.1.1 $NODE_HOSTNAME" >> /etc/hosts
+    echo -e "\n 127.0.1.1 $NODE_HOSTNAME" >> /etc/hosts
 fi
 
 # 4. Swap
@@ -38,21 +38,21 @@ sed -i.bak '/\bswap\b/s/^/#/' /etc/fstab
 # ничего не загрузит, но и не нужен. Проверяем фактическую доступность.
 modprobe overlay 2>/dev/null || true
 if ! grep -qw overlay /proc/filesystems; then
-    echo "ОШИБКА: overlayfs недоступна (нет ни модуля, ни встроенной поддержки)"
+    echo -e "\n ОШИБКА: overlayfs недоступна (нет ни модуля, ни встроенной поддержки)"
     exit 1
 fi
 
 modprobe br_netfilter 2>/dev/null || true
 if [ ! -e /proc/sys/net/bridge/bridge-nf-call-iptables ]; then
-    echo "ОШИБКА: br_netfilter недоступен (нет ни модуля, ни встроенной поддержки)"
+    echo -e "\n ОШИБКА: br_netfilter недоступен (нет ни модуля, ни встроенной поддержки)"
     exit 1
 fi
 
 # прописываем на загрузку только то, что реально является модулем
 # (встроенные в ядро в lsmod не попадают и в modules-load.d не нужны)
 : > /etc/modules-load.d/k8s.conf
-lsmod | grep -q '^overlay'       && echo "overlay" >> /etc/modules-load.d/k8s.conf
-lsmod | grep -q '^br_netfilter'  && echo "br_netfilter" >> /etc/modules-load.d/k8s.conf
+lsmod | grep -q '^overlay'       && echo "\noverlay" >> /etc/modules-load.d/k8s.conf
+lsmod | grep -q '^br_netfilter'  && echo "\nbr_netfilter" >> /etc/modules-load.d/k8s.conf
 
 # 6. Параметры сети
 # без ip_forward пакеты подов не покидают ноду,
@@ -65,4 +65,4 @@ EOF
 
 sysctl --system > /dev/null
 
-echo "Готово. Проверка: sudo bash tests/test-01-node-base.sh $NODE_HOSTNAME"
+echo -e "\n Готово. Проверка: sudo bash tests/test-01-node-base.sh $NODE_HOSTNAME"

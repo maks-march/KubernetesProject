@@ -16,9 +16,9 @@ POD_CIDR="10.244.0.0/16"
 # 1. Инициализация control-plane
 # admin.conf создаётся при первом init, по нему понимаем что кластер уже есть.
 if [ -f /etc/kubernetes/admin.conf ]; then
-    echo "Кластер уже инициализирован, пропускаю kubeadm init."
+    echo -e "\n Кластер уже инициализирован, пропускаю kubeadm init."
 else
-    echo "Инициализирую control-plane: $NODE_NAME ($NODE_IP), pod CIDR $POD_CIDR"
+    echo -e "\n Инициализирую control-plane: $NODE_NAME ($NODE_IP), pod CIDR $POD_CIDR"
     kubeadm init \
         --apiserver-advertise-address="$NODE_IP" \
         --pod-network-cidr="$POD_CIDR" \
@@ -37,7 +37,10 @@ chmod 600 "$USER_HOME/.kube/config"
 # 3. Taint
 # kubeadm запрещает обычным подам работать на control-plane (taint NoSchedule).
 # Нода одна, поэтому taint снимаем, иначе поды навсегда останутся в Pending.
+# Сначала проверяем, что taint вообще есть: повторный запуск не должен падать.
 export KUBECONFIG=/etc/kubernetes/admin.conf
-kubectl taint nodes --all node-role.kubernetes.io/control-plane- --ignore-not-found
+if kubectl get node "$NODE_NAME" -o jsonpath='{.spec.taints}' | grep -q "control-plane"; then
+    kubectl taint nodes "$NODE_NAME" node-role.kubernetes.io/control-plane-
+fi
 
-echo "Готово. Проверка (без sudo): bash tests/test-03-cluster-init.sh"
+echo -e "\n Готово. Проверка (без sudo): bash tests/test-03-cluster-init.sh"
