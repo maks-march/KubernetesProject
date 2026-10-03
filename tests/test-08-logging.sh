@@ -27,18 +27,10 @@ fi
 
 TRACE="k8sproject-$(date +%s)"
 curl -sf "http://${GW_IP}/?trace=${TRACE}" > /dev/null || true
-echo ""
-echo "Отправлен запрос с меткой ${TRACE}, жду записи в логах (10 секунд)..."
-sleep 10
+sleep 12
 
 LOG_LINE="$(kubectl -n logging exec daemonset/fluentd -- sh -c "grep -h '${TRACE}' /var/log/fluentd/nginx-access*" 2>/dev/null || true)"
-check "запрос через Gateway попал в собранные логи" "[ -n \"$LOG_LINE\" ]"
-
-echo ""
-if [ -n "$LOG_LINE" ]; then
-    echo "Найденная запись:"
-    echo "$LOG_LINE" | head -1 | sed 's/^/  /'
-fi
-echo ""
+# $ экранирован: переменная разворачивается внутри кавычек при eval
+check "запрос через Gateway попал в собранные логи" "[ -n \"\$LOG_LINE\" ]"
 
 finish
