@@ -34,6 +34,16 @@ cp -f /etc/kubernetes/admin.conf "$USER_HOME/.kube/config"
 chown "$REAL_USER":"$REAL_USER" "$USER_HOME/.kube/config"
 chmod 600 "$USER_HOME/.kube/config"
 
+# 3. Ждём готовности apiserver
+# после init apiserver поднимается не сразу; без ожидания команды kubectl
+# ниже падают по connection refused и taint не снимается
+export KUBECONFIG=/etc/kubernetes/admin.conf
+echo -e "\n Жду готовности apiserver (может занять до минуты)..."
+until kubectl get --raw=/readyz > /dev/null 2>&1; do
+    sleep 2
+done
+echo -e "\n apiserver готов"
+
 # 4. Taint
 # kubeadm запрещает обычным подам работать на control-plane (taint NoSchedule).
 # Нода одна, поэтому taint снимаем, иначе поды навсегда останутся в Pending.
